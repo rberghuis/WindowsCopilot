@@ -14,7 +14,7 @@ The script
   4. It then terminates all processes of Microsoft Edge, which will also 'crash' New Teams and New Outlook applications that use MsEdgeWebView2, however it is expected that they auto-restart.
   5. Finally, the script updates certain registry keys to enable the Copilot feature and launches it.
 
-Copyright (c) 2024 Robbert Berghuis <robbert.berghuis@avanade.com>
+Copyright (c) 2024 Robbert Berghuis | https://www.linkedin.com/in/robbertberghuis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -31,10 +31,11 @@ None
 None
 
 .PARAMETER UnlockCountry
-The ISO 3166-1 alpha-2 code representation of the country to unlock, defaults to NL
+The ISO 3166-2 alpha-2 code representation of the country to unlock, defaults to NL
+Script does not validate if the input is an official ISO 3166-2 alpha-2 code but confirms if the input consists of 2 alphabetical characters
 
 .NOTES
-Copyright (c) 2024 Robbert Berghuis <robbert.berghuis@avanade.com>
+Copyright (c) 2024 Robbert Berghuis | https://www.linkedin.com/in/robbertberghuis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -59,20 +60,19 @@ Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
 # Always read and understand the code before executing it
 
 # When read, understood and confirmed. Run the script as below to unlock Copilot for Windows for NL
-.\WindowsCopilot.ps1 -UnlockCountry NL
+.\Enable-WindowsCopilot.ps1 -UnlockCountry NL
 
 .LINK
+https://www.linkedin.com/in/robbertberghuis
 https://github.com/rberghuis/WindowsCopilot
-https://www.linkedin.com/in/robbertberghuis/
 https://opensource.org/license/mit
-https://en.wikipedia.org/wiki/ISO_3166-2
 
 #>
 
 [CmdletBinding()]
 Param (
-    # List of ISO-codes retrieved from https://en.wikipedia.org/wiki/ISO_3166-2 on May 2nd, 2024
-    [ValidateScript({ $_ -in @("AD", "AE", "AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AR", "AS", "AT", "AU", "AW", "AX", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BL", "BM", "BN", "BO", "BQ", "BR", "BS", "BT", "BV", "BW", "BY", "BZ", "CA", "CC", "CD", "CF", "CG", "CH", "CI", "CK", "CL", "CM", "CN", "CO", "CR", "CU", "CV", "CW", "CX", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "DZ", "EC", "EE", "EG", "EH", "ER", "ES", "ET", "FI", "FJ", "FK", "FM", "FO", "FR", "GA", "GB", "GD", "GE", "GF", "GG", "GH", "GI", "GL", "GM", "GN", "GP", "GQ", "GR", "GS", "GT", "GU", "GW", "GY", "HK", "HM", "HN", "HR", "HT", "HU", "ID", "IE", "IL", "IM", "IN", "IO", "IQ", "IR", "IS", "IT", "JE", "JM", "JO", "JP", "KE", "KG", "KH", "KI", "KM", "KN", "KP", "KR", "KW", "KY", "KZ", "LA", "LB", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MF", "MG", "MH", "MK", "ML", "MM", "MN", "MO", "MP", "MQ", "MR", "MS", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NP", "NR", "NU", "NZ", "OM", "PA", "PE", "PF", "PG", "PH", "PK", "PL", "PM", "PN", "PR", "PS", "PT", "PW", "PY", "QA", "RE", "RO", "RS", "RU", "RW", "SA", "SB", "SC", "SD", "SE", "SG", "SH", "SI", "SJ", "SK", "SL", "SM", "SN", "SO", "SR", "SS", "ST", "SV", "SX", "SY", "SZ", "TC", "TD", "TF", "TG", "TH", "TJ", "TK", "TLa", "TM", "TN", "TO", "TR", "TT", "TV", "TW", "TZ", "UA", "UG", "UM", "US", "UY", "UZ", "VA", "VC", "VE", "VG", "VI", "VN", "VU", "WF", "WS", "YE", "YT", "ZA", "ZM", "ZW") })]
+    # Not the most acurate check, but should suffice to capture input that (in theory) matches with the ISO-codes found at https://en.wikipedia.org/wiki/ISO_3166-2
+    [ValidateScript({ $_ -match "[a-zA-Z]{2}" })]
     [ValidateNotNullOrEmpty()]
     [string]$UnlockCountry = 'NL' # Update this value to remove the applicable country-level restriction
 )
@@ -86,7 +86,7 @@ If ($False -eq (New-Object Security.Principal.WindowsPrincipal([Security.Princip
 }
 
 #region Unblock Windows Copilot for this specific 'Country'
-# Read the JSON file, it is UTF8 encoded
+# Specify the path to the JSON file
 $jsonFile = "C:\Windows\System32\IntegratedServicesRegionPolicySet.json"
 
 # Check if the path exists
@@ -95,11 +95,16 @@ If (-Not (Test-Path -Path $jsonFile)) {
     Break
 }
 
+# Read content and convert to JSON, it is UTF8 encoded
+Try {
+    $ISRPS = Get-Content -Path $jsonFile -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
+} Catch {
+    Throw "Failed to read the JSON file '$($jsonFile)'"
+    Break
+}
+
 # Tracking var to indicate if 'something has changed'
 $SomethingHasChanged = $false
-
-# Read content and convert to JSON
-$ISRPS = Get-Content -Path $jsonFile -Encoding UTF8 | ConvertFrom-Json
 
 # For all policies, focus on (any of) the settings concerning Copilot 
 $ISRPS.Policies | Where-Object { $_.'$comment' -like '*Copilot*' } | ForEach-Object {
@@ -119,7 +124,7 @@ If ($SomethingHasChanged) {
     $ACL = Get-ACL -Path $jsonFile
 
     # Read the access for the local Administrators group
-    $AdminAccess = $ACL.Access | Where-Object {$_.IdentityReference -eq 'BUILTIN\Administrators'}
+    $AdminAccess = $ACL.Access | Where-Object { $_.IdentityReference -eq 'BUILTIN\Administrators' }
 
     # Check if either FullControl is not provided, or not 'Allow'-ed, if either isn't true, then update the ACL
     If ($AdminAccess.FileSystemRights -ne 'FullControl' -or $AdminAccess.AccessControlType -ne 'Allow') {
@@ -134,11 +139,21 @@ If ($SomethingHasChanged) {
         $ACL.AddAccessRule($rule)
 
         # Commit the change of ACL on the file
-        Set-Acl -Path $jsonFile -AclObject $ACL
+        Try {
+            Set-Acl -Path $jsonFile -AclObject $ACL -ErrorAction Stop
+        } Catch {
+            Throw "Failed to update the ACL on the JSON file '$($jsonFile)' to grant FullControl to the local Administrators group"
+            Break
+        }
     }
 
     # Write the new output replacing the old/existing content
-    $ISRPS | ConvertTo-Json -Depth 5 | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Set-Content -Path $jsonFile
+    Try {
+        $ISRPS | ConvertTo-Json -Depth 5 | ForEach-Object { [System.Text.RegularExpressions.Regex]::Unescape($_) } | Set-Content -Path $jsonFile -ErrorAction Stop
+    } Catch {
+        Throw "Failed to write the new JSON content to the file '$($jsonFile)'"
+        Break
+    }
 }
 #endregion
 
@@ -158,35 +173,48 @@ Get-Process 'msedge*' | Stop-Process -Confirm:$true
     # Check if the Value is as expected
     If ($_.Value -ne (Get-ItemProperty -Path $_.Path)."$($_.Key)") {
         # Write the new value, this also creates registry keys when not set
-        Set-ItemProperty -Path $_.Path -Name $_.Key -Value $_.Value -Confirm:$false -Type $_.Type -Verbose
+        Try {
+            Set-ItemProperty -Path $_.Path -Name $_.Key -Value $_.Value -Type $_.Type -Confirm:$false -Verbose -ErrorAction Stop
+        } Catch {
+            # Non-terminating error
+            Write-Error "Failed to update the registry key '$($_.Path)\$($_.Key)' with value '$($_.Value)'. Windows Copilot might not function correctly..." -ErrorAction Continue
+        }
     }
 }
 #endregion
 
 #region Launch Windows Copilot using a method to avoid launching it in elevated-mode (as we're running elevated PowerShell)
-# Define a temp path to store a shortcurt
-$FilePath = Join-Path -Path $env:TEMP -ChildPath "$(Get-Date -Format FileDateTime)WindowsCopilot.lnk"
+# Seems to be non-sense, but running Windows Copilot through Edge in elevated mode will prevent normal end-user tasks for which Edge is used in a 'non-elevated'-mode
+Try {
+    # Define a temp path to store a shortcurt
+    $FilePath = Join-Path -Path $env:TEMP -ChildPath "$(Get-Date -Format FileDateTime)WindowsCopilot.lnk" -ErrorAction Stop
 
-# Create a new Shortcut
-$WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut($FilePath)
-$shortcut.TargetPath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
-$Shortcut.Arguments = '--single-argument microsoft-edge:///?ux=copilot&tcp=1&source=taskbar'
-$shortcut.WorkingDirectory = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application"
-$Shortcut.Save()
+    # Create a new Shortcut
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($FilePath)
+    $shortcut.TargetPath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+    $Shortcut.Arguments = '--single-argument microsoft-edge:///?ux=copilot&tcp=1&source=taskbar'
+    $shortcut.WorkingDirectory = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application"
+    $Shortcut.Save()
 
-# Run the shortcut using a 'loophole' through explorer.exe - this ensures the process is launched without elevated privileges
-$newProc = New-Object System.Diagnostics.ProcessStartInfo "PowerShell"
-$newProc.Arguments = "explorer.exe $FilePath"
-$ProcStart = [System.Diagnostics.Process]::Start($newProc)
+    # Run the shortcut using a 'loophole' through explorer.exe - this ensures the process is launched without elevated privileges
+    $newProc = New-Object System.Diagnostics.ProcessStartInfo "PowerShell"
+    $newProc.Arguments = "explorer.exe $FilePath"
+    $ProcStart = [System.Diagnostics.Process]::Start($newProc)
 
-# Wait for the process to finish
-While ($ProcStart.HasExited -eq $false -or (New-TimeSpan -Start $procStart.ExitTime -End (Get-Date)).Seconds -le 1) {
-    Start-Sleep -Seconds 1
+    # Wait for the process to finish
+    While ($ProcStart.HasExited -eq $false -or (New-TimeSpan -Start $procStart.ExitTime -End (Get-Date)).Seconds -le 1) {
+        Start-Sleep -Seconds 1
+    }
+} Catch {
+    # Non-terminating error
+    Write-Error "Failed to launch Windows Copilot, please try to launching it manually from the Taskbar" -ErrorAction Continue
+} Finally {
+    If ($FilePath) {
+        # Remove the temp-file as we no longer need it
+        Remove-Item -Path $FilePath -Confirm:$false -ErrorAction SilentlyContinue
+    }
 }
-
-# Remove the temp-file as we no longer need it
-Remove-item $FilePath
 #endregion
 
 # Exit
