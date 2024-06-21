@@ -160,25 +160,49 @@ If ($SomethingHasChanged) {
 # Terminate all processes of MSEdge, this will also terminate New Teams and New Outlook apps using MsEdgeWebView2 but they should auto-restart
 Get-Process 'msedge*' | Stop-Process -Confirm:$true
 
-#region Set local settings and override policies, last - disable the 'ShowCopilotButton' and Enable it (again) to ensure the Taskbar is updated
+#region Set local settings and override policies
 @(
+    # Current User settings & policies
+    @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings'; Key = 'AutoOpenCopilotLargeScreens'; Value = '1'; Type = 'Dword' }
+    @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\WindowsCopilot';  Key = 'AllowCopilotRuntime'; Value = 1; Type = 'Dword' }
     @{ Path = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot'; Key = 'CopilotDisabledReason'; Value = ''; Type = 'String' }
     @{ Path = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot'; Key = 'IsCopilotAvailable'; Value = 1; Type = 'DWord' }
     @{ Path = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot\BingChat'; Key = 'IsUserEligible'; Value = 1; Type = 'DWord' }
     @{ Path = 'HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot'; Key = 'TurnOffWindowsCopilot'; Value = 0; Type = 'DWord' }
-    @{ Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'; Key = 'DiscoverPageContextEnabled'; Value = 1; Type = 'DWord' }
+    @{ Path = 'HKCU:\Software\Policies\Microsoft\Edge'; Key = ' DiscoverPageContextEnabled'; Value = 1; Type = 'DWord' }
+    # Local Machine settings & policies
+    @{ Path = 'HKLM:\Software\Policies\Microsoft\Edge'; Key = 'DiscoverPageContextEnabled'; Value = 1; Type = 'DWord' }
+    @{ Path = 'HKLM:\Software\Policies\Microsoft\Windows\WindowsCopilot'; Key = 'TurnOffWindowsCopilot'; Value = 0; Type = 'DWord' }
+    @{ Path = 'HKLM:\Software\Policies\Microsoft\Windows\WindowsCopilot'; Key = 'DisableAIDataAnalysis'; Value = 0; Type = 'DWord' } # Windows Recall
+    # Hide and Show the Copilot button on the Taskbar
     @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Key = 'ShowCopilotButton'; Value = 0; Type = 'DWord' }
     @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'; Key = 'ShowCopilotButton'; Value = 1; Type = 'DWord' }
 ) | Foreach-Object {
     # Check if the Value is as expected
-    If ($_.Value -ne (Get-ItemProperty -Path $_.Path)."$($_.Key)") {
+    If ($_.Value -ne (Get-ItemProperty -Path $_.Path -ErrorAction SilentlyContinue)."$($_.Key)") {
         # Write the new value, this also creates registry keys when not set
         Try {
             Set-ItemProperty -Path $_.Path -Name $_.Key -Value $_.Value -Type $_.Type -Confirm:$false -Verbose -ErrorAction Stop
+        } Catch [System.Management.Automation.ItemNotFoundException] {
+            # Under the assumption everything is allowed/enabled by default, this is a non-terminating error that also has little value. Verbosing for visbility
+            Write-Verbose "Cannot update the registry key as (part of) the path does not exists '$($input.Path)\$($input.Key)'." -Verbose
         } Catch {
             # Non-terminating error
-            Write-Error "Failed to update the registry key '$($_.Path)\$($_.Key)' with value '$($_.Value)'. Windows Copilot might not function correctly..." -ErrorAction Continue
+            Write-Error "Failed to update the registry key '$($input.Path)\$($input.Key)' with value '$($input.Value)'. Windows Copilot might not function correctly..." -ErrorAction Continue
         }
+    }
+}
+#endregion
+
+#region Disable the 'ShowCopilotButton' and Enable it (again) to ensure the Taskbar is updated no longer works as Microsoft moved the Copilot button to the system tray.
+If (($Host.UI.PromptForChoice("Restart Windows (File) Explorer, closing all existing windows?", "In order to properly effectuate the Copilot for Windows changes on your taskbar, it is recommended to restart the Windows Explorer. This will close all open windows. Do you want to continue?", @('&Yes', '&No'), 0)) -eq 0) {
+    # Restarting File Explorer will ensure the Taskbar is updated but also 'crash' any open File Explorer windows - user choose to restart
+    Try {
+        Stop-Process -Name explorer -Force -ErrorAction Stop
+        Start-Process explorer -ErrorAction Stop
+    } Catch {
+        # Non-terminating error. user problem from here on onwards
+        Write-Error "Failed to restart the Windows Explorer process, the Taskbar might not be updated correctly..." -ErrorAction Continue
     }
 }
 #endregion
