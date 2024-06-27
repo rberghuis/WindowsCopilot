@@ -169,7 +169,7 @@ Get-Process 'msedge*' | Stop-Process -Confirm:$true
     @{ Path = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot'; Key = 'IsCopilotAvailable'; Value = 1; Type = 'DWord' }
     @{ Path = 'HKCU:\Software\Microsoft\Windows\Shell\Copilot\BingChat'; Key = 'IsUserEligible'; Value = 1; Type = 'DWord' }
     @{ Path = 'HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot'; Key = 'TurnOffWindowsCopilot'; Value = 0; Type = 'DWord' }
-    @{ Path = 'HKCU:\Software\Policies\Microsoft\Edge'; Key = ' DiscoverPageContextEnabled'; Value = 1; Type = 'DWord' }
+    @{ Path = 'HKCU:\Software\Policies\Microsoft\Edge'; Key = 'DiscoverPageContextEnabled'; Value = 1; Type = 'DWord' }
     # Local Machine settings & policies
     @{ Path = 'HKLM:\Software\Policies\Microsoft\Edge'; Key = 'DiscoverPageContextEnabled'; Value = 1; Type = 'DWord' }
     @{ Path = 'HKLM:\Software\Policies\Microsoft\Windows\WindowsCopilot'; Key = 'TurnOffWindowsCopilot'; Value = 0; Type = 'DWord' }
